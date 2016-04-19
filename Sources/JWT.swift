@@ -16,6 +16,10 @@ public enum Algorithm : CustomStringConvertible {
 
   /// HMAC using SHA-512 hash algorithm
   case HS512(String)
+  
+  /// HMAC using SHA-512 hash algorithm
+  case HS512_Base64(String)
+  
 
   static func algorithm(name:String, key:String?) -> Algorithm? {
     if name == "none" {
@@ -46,13 +50,14 @@ public enum Algorithm : CustomStringConvertible {
       return "HS384"
     case .HS512:
       return "HS512"
+    case .HS512_Base64: return "HS512"
     }
   }
 
   /// Sign a message using the algorithm
-  func sign(message:String) -> String {
-    func signHS(key:String, variant:CryptoSwift.HMAC.Variant) -> String {
-      let keyData = key.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: false)!
+  public func sign(message:String) -> String {
+    func signHSInternal(key:NSData, variant:CryptoSwift.HMAC.Variant) -> String {
+      let keyData = key //key.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: false)!
       let messageData = message.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: false)!
       let mac = Authenticator.HMAC(key: keyData.arrayOfBytes(), variant:variant)
       let result: [UInt8]
@@ -63,6 +68,12 @@ public enum Algorithm : CustomStringConvertible {
       }
       return base64encode(NSData.withBytes(result))
     }
+    
+    func signHS(key:String, variant:CryptoSwift.HMAC.Variant) -> String {
+      let keyData = key.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: false)!
+      return signHSInternal(keyData,variant:variant)
+    }
+    
 
     switch self {
     case .None:
@@ -76,11 +87,14 @@ public enum Algorithm : CustomStringConvertible {
 
     case .HS512(let key):
       return signHS(key, variant: .sha512)
+    case .HS512_Base64(let base64):
+      let keyData = NSData(base64EncodedString: base64, options: [])!
+      return signHSInternal(keyData,variant: .sha512)
     }
   }
 
   /// Verify a signature for a message using the algorithm
-  func verify(message:String, signature:NSData) -> Bool {
+  public func verify(message:String, signature:NSData) -> Bool {
     return sign(message) == base64encode(signature)
   }
 }
@@ -106,6 +120,19 @@ public func encode(payload:Payload, algorithm:Algorithm) -> String {
   let signingInput = "\(header).\(payload)"
   let signature = algorithm.sign(signingInput)
   return "\(signingInput).\(signature)"
+}
+
+public func signHS(message:String,key:NSData, variant:CryptoSwift.HMAC.Variant) -> String {
+  let keyData = key //key.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: false)!
+  let messageData =  message.dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: false)!
+  let mac = Authenticator.HMAC(key: keyData.arrayOfBytes(), variant:variant)
+  let result: [UInt8]
+  do {
+    result = try mac.authenticate(messageData.arrayOfBytes())
+  } catch {
+    result = []
+  }
+  return base64encode(NSData.withBytes(result))
 }
 
 public class PayloadBuilder {

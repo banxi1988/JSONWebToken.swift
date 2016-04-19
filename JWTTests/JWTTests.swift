@@ -252,6 +252,17 @@ class JWTDecodeTests : XCTestCase {
     assertSuccess(try decode(jwt, algorithm: .HS512("secret"))) { payload in
       XCTAssertEqual(payload as NSDictionary, ["some": "payload"])
     }
+   
+    // Support base64 Key
+    
+    let keyData = "secret".dataUsingEncoding(NSUTF8StringEncoding, allowLossyConversion: false)!
+    let keyBase64 = keyData.base64EncodedStringWithOptions([])
+    
+    let jwt2 = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJzb21lIjoicGF5bG9hZCJ9.WTzLzFO079PduJiFIyzrOah54YaM8qoxH9fLMQoQhKtw3_fMGjImIOokijDkXVbyfBqhMo2GCNu4w9v7UXvnpA"
+    assertSuccess(try decode(jwt, algorithm: .HS512_Base64(keyBase64))) { payload in
+      XCTAssertEqual(payload as NSDictionary, ["some": "payload"])
+    }
+    
   }
 }
 
